@@ -1,6 +1,6 @@
 /**
  * ============================================================
- *  Project : Dashboard Monitoring Ruangan dengan ESP32
+ *  Project : Smart Monitoring Room dengan ESP32
  *  Role    : CLIENT (ESP32)
  *  Task    : Membaca suhu & kelembaban dari sensor DHT11,
  *            lalu mengirimkannya ke server lokal via HTTP POST
@@ -22,13 +22,13 @@
 #include <DHT.h>
 
 // ------------ KONFIGURASI WiFi ------------
-const char* WIFI_SSID     = "UGM-Hotspot-Maskam";
-const char* WIFI_PASSWORD = "";
+const char* WIFI_SSID     = "NAMA_WIFI_ANDA";
+const char* WIFI_PASSWORD = "PASSWORD_WIFI_ANDA";
 
 // ------------ KONFIGURASI SERVER ----------
 // Ganti dengan IP laptop/PC yang menjalankan Flask.
 // Cek dengan `ipconfig` (Windows) atau `ifconfig`/`ip a` (Linux/macOS).
-const char* SERVER_URL = "http://10.6.6.41:5020/sensor-data";
+const char* SERVER_URL = "http://<IP-LAPTOP>:5020/sensor-data";
 
 // ------------ KONFIGURASI SENSOR ----------
 #define DHTPIN   4        // GPIO4 untuk data DHT11

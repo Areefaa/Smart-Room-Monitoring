@@ -1,6 +1,6 @@
 """
 ===========================================================
- Dashboard Monitoring Ruangan - Flask Server
+ Smart Monitoring Room - Flask Server
 -----------------------------------------------------------
  Peran : SERVER (laptop / PC)
  Tugas :
@@ -17,7 +17,6 @@
 """
 
 from __future__ import annotations
-
 from collections import deque
 from datetime import datetime
 from flask import Flask, jsonify, render_template, request

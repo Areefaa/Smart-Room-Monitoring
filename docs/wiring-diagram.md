@@ -2,14 +2,14 @@
 
 ## 1. Pemilihan Modul DHT11
 
-Ada dua varian DHT11 di pasaran:
+Terdapat dua varian model DHT11:
 
 | Varian          | Pin | Pull-up internal | Rekomendasi |
 |-----------------|-----|------------------|-------------|
-| **Modul 3-pin** (PCB kecil, label `+ S -` atau `VCC DATA GND`) | 3 | **Ya** (sudah ada resistor 10 kΩ di PCB) | **Dipakai di project ini** — paling mudah |
+| **Modul 3-pin** (PCB kecil, label `+ S -` atau `VCC DATA GND`) | 3 | **Ya** (sudah ada resistor 10 kΩ di PCB) | **Dipakai di project ini** |
 | **Sensor 4-pin** (berbentuk blok biru polos) | 4 | Tidak | Perlu tambah resistor 10 kΩ antara DATA & VCC |
 
-> Gambar sensor DHT11 modul 3-pin memiliki **LED indikator** di PCB-nya.
+> Catatan: Biasanya sensor DHT11 modul 3-pin memiliki **LED indikator** di PCB-nya.
 
 ## 2. Koneksi Pin
 
@@ -17,11 +17,11 @@ Ada dua varian DHT11 di pasaran:
 
 | DHT11 Pin | ESP32 Pin   | Warna Kabel (saran) |
 |-----------|-------------|---------------------|
-| `+` / VCC | **3V3**     | Merah               |
-| `S` / DATA| **GPIO 4**  | Kuning              |
-| `−` / GND | **GND**     | Hitam               |
+| `+` / VCC | **3V3**     | Hitam               |
+| `S` / DATA| **GPIO 4**  | Putih               |
+| `−` / GND | **GND**     | Abu-abu             |
 
-> ⚠️ **Jangan** pakai **5V** — DHT11 modul biasanya aman di 3V3, dan input ESP32 hanya tolerate 3V3. Beberapa modul 5V juga aman, tapi **3V3 paling direkomendasikan**.
+> ⚠️ **Jangan** menggunakan **5V** — DHT11 modul biasanya aman di 3V3, dan input ESP32 hanya tolerate 3V3. Beberapa modul 5V juga aman, tapi **3V3 paling direkomendasikan**.
 
 ### 2.2 Sensor DHT11 mentah (4-pin)
 
@@ -40,9 +40,9 @@ Ditambah **resistor 10 kΩ** antara **VCC** dan **DATA** (pull-up).
                 ┌──────────────────────┐
                 │         ESP32        │
                 │                      │
-                │   3V3 ●──┐           │
+                │   3V3  ●─┐           │
                 │          │           │
-                │  GND  ●──┼──┐        │
+                │  GND   ●─┼─┐         │
                 │          │  │        │
                 │  GPIO4 ●─┼──┼──┐     │
                 └──────────┼──┼──┼─────┘
@@ -51,8 +51,8 @@ Ditambah **resistor 10 kΩ** antara **VCC** dan **DATA** (pull-up).
                 ┌──────────┼──┼──┼─────┐
                 │   DHT11  │  │  │     │
                 │          │  │  │     │
-                │   VCC ●──┘  │  │     │
-                │   GND ●─────┘  │     │
+                │   VCC  ●─┘  │  │     │
+                │   GND  ●────┘  │     │
                 │   DATA ●───────┘     │
                 └──────────────────────┘
 ```
@@ -74,11 +74,11 @@ Jika kamu ganti pin, ubah di `esp32_dht11_client.ino`:
 
 ## 5. Checklist Sebelum Power-On
 
-- [ ] VCC DHT11 ke **3V3** ESP32 (bukan 5V).
-- [ ] GND tersambung.
-- [ ] DATA ke GPIO 4 (atau pin yang kamu pilih di kode).
-- [ ] Kabel tidak longgar (DHT11 sensitif terhadap koneksi buruk).
-- [ ] ESP32 **tidak** di-colok ke VCC eksternal & USB bersamaan jika tidak perlu.
+- [x] VCC DHT11 ke **3V3** ESP32 (bukan 5V).
+- [x] GND tersambung.
+- [x] DATA ke GPIO 4 (atau pin yang kamu pilih di kode).
+- [x] Kabel tidak longgar (DHT11 sensitif terhadap koneksi buruk).
+- [x] ESP32 **tidak** di-colok ke VCC eksternal & USB bersamaan jika tidak perlu.
 
 ## 6. Tips Debugging Sensor
 

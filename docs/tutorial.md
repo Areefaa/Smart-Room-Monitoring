@@ -1,7 +1,4 @@
 # Tutorial Lengkap — Dashboard Monitoring Ruangan (ESP32 + DHT11 + Flask)
-
-Tutorial ini memandu kamu dari nol sampai dashboard berjalan, untuk tugas mata kuliah **Komunikasi Data & Jaringan Komputer** (Kelompok 5, Project Manager **Nawal Arifah**, akun GitHub **`aufaakmalbunaya`**).
-
 ---
 
 ## 1. Konsep Client–Server di Project Ini
@@ -87,7 +84,7 @@ Biarkan terminal ini tetap terbuka — server harus tetap jalan selama ESP32 men
 
 ### 4.3 Cek IP LAN Laptop
 
-- **Windows**: `ipconfig` → cari "IPv4 Address" di adapter WiFi.
+- **Windows**: `ipconfig`
 - **Linux/macOS**: `ip addr` atau `ifconfig`.
 
 Catat IP ini (contoh: `192.168.1.10`). Angka ini yang akan dipakai di kode ESP32.
@@ -130,7 +127,7 @@ Tiga baris berikut **WAJIB** diganti:
 ```cpp
 const char* WIFI_SSID     = "NAMA_WIFI_ANDA";
 const char* WIFI_PASSWORD = "PASSWORD_WIFI_ANDA";
-const char* SERVER_URL    = "http://192.168.1.10:5020/sensor-data"; // IP laptop
+const char* SERVER_URL    = "http://<IP-LAPTOP>:5020/sensor-data"; // IP laptop
 ```
 
 > ⚠️ ESP32 hanya bisa connect ke WiFi **2.4 GHz** (bukan 5 GHz). Jika routermu dual-band, gunakan SSID 2.4 GHz-nya.
@@ -159,7 +156,7 @@ Jika port tidak muncul, install driver **CP210x** (Silabs) atau **CH340** (terga
   ....
   Terhubung. IP ESP32: 192.168.1.42
   [DHT11] Suhu: 29.5 C | Kelembaban: 70.0 %
-  [HTTP] POST http://192.168.1.10:5020/sensor-data -> {"device_id":"esp32-01","temperature":29.5,"humidity":70.0}
+  [HTTP] POST http://<IP-LAPTOP>:5020/sensor-data -> {"device_id":"esp32-01","temperature":29.5,"humidity":70.0}
   [HTTP] Response code: 200
   [HTTP] Response body: {"received":{"device_id":"esp32-01","humidity":70.0,...},"status":"ok"}
   ```
@@ -172,19 +169,19 @@ Jika port tidak muncul, install driver **CP210x** (Silabs) atau **CH340** (terga
 ESP32                            Flask Server                        Browser
   │                                    │                                │
   │  (5 detik sekali)                  │                                │
-  │  baca DHT11 → suhu, RH              │                                │
+  │  baca DHT11 → suhu, RH             │                                │
   │                                    │                                │
   │  POST /sensor-data + JSON          │                                │
   │──────────────────────────────────▶│                                │
   │                                    │  validasi JSON                 │
   │                                    │  simpan ke deque (max 200)     │
-  │  200 OK + {status:"ok"}             │                                │
+  │  200 OK + {status:"ok"}            │                                │
   │◀──────────────────────────────────│                                │
   │                                    │                                │
   │                                    │      GET /                     │
-  │                                    │◀───────────────────────────────│
+  │                                    │◀──────────────────────────────│
   │                                    │  render dashboard.html         │
-  │                                    │───────────────────────────────▶│
+  │                                    │──────────────────────────────▶│
   │                                    │                                │
   │  (loop selama 5 detik)             │                                │  (auto-refresh 5 s)
 ```
@@ -219,7 +216,7 @@ Response server:
 
 ## 8. Testing Tanpa Hardware (Simulasi)
 
-Jika ESP32 belum tersedia, kamu bisa simulasikan client dengan `curl`:
+Jika ESP32 belum tersedia, bisa disimulasikan client dengan `curl` terlebih dahulu:
 
 ```bash
 # POST tunggal
@@ -254,7 +251,7 @@ done
 
 ## 9. Troubleshooting
 
-Lihat tabel lengkap di [`../README.md` bagian 9](../README.md#9-testing--troubleshooting). Ringkasan paling sering:
+Lihat tabel lengkap di [`../README.md` bagian 9](../README.md#9-testing--troubleshooting).
 
 1. **ESP32 tidak connect WiFi** → pastikan **2.4 GHz**, SSID/password benar.
 2. **POST gagal** → cek `ping <IP-laptop>` dari HP; Allow Python di firewall.
@@ -264,31 +261,8 @@ Lihat tabel lengkap di [`../README.md` bagian 9](../README.md#9-testing--trouble
 
 ---
 
-## 10. Push ke GitHub (syarat tugas)
+## 10. Checklist Akhir Progres
 
-```bash
-cd dashboard-monitoring-esp32
-git init
-git add README.md .gitignore
-git commit -m "Initial commit: README, .gitignore, struktur folder"
-
-git add firmware/
-git commit -m "Add ESP32 firmware (WiFi + DHT11 + HTTP POST JSON)"
-
-git add server/
-git commit -m "Add Flask server + dashboard HTML"
-
-git add docs/ screenshots/
-git commit -m "Add documentation (tutorial, wiring diagram, screenshot)"
-
-# Buat repo di github.com (Public, jangan init README)
-git remote add origin https://github.com/aufaakmalbunaya/dashboard-monitoring-esp32.git
-git branch -M main
-git push -u origin main
-# Saat ditanya password → paste Personal Access Token (PAT), bukan password akun.
-```
-
-**Checklist tugas GitHub:**
 - [x] Repo public
 - [x] README.md lengkap
 - [x] .gitignore ada
@@ -297,7 +271,7 @@ git push -u origin main
 
 ---
 
-## 11. Pengembangan Lanjutan
+## 11. Rencana Pengembangan Lanjutan
 
 - Simpan data ke **SQLite** agar tidak hilang saat server restart.
 - Tambah **grafik real-time** (Chart.js) di dashboard.
@@ -305,5 +279,3 @@ git push -u origin main
 - Tambah **autentikasi API** (API key di header).
 - Migrasi ke **MQTT** untuk arsitektur IoT yang lebih scalable.
 - Deploy server ke **cloud** (Render, Railway, PythonAnywhere).
-
-Selamat mengerjakan! 🎯
