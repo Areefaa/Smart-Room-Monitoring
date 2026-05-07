@@ -18,7 +18,7 @@ Project Komunikasi Data & Jaringan Komputer yang mendemonstrasikan komunikasi cl
   - [`Areefaa`](https://github.com/Areefaa)
   - [`ihsadk`](https://github.com/ihsadk)
 
-- Repository        : `https://github.com/Areefaa/Smart-Room-Monitoring.git`
+- Repository        : [`https://github.com/Areefaa/Smart-Room-Monitoring.git`](https://github.com/Areefaa/Smart-Room-Monitoring.git)
 
 ---
 
@@ -53,7 +53,7 @@ Project ini menunjukkan bagaimana dua perangkat berbeda (mikrokontroler dan PC) 
 
 ## 3. Arsitektur Sistem
 ```
-┌───────────────┐   I²C/1-Wire   ┌─────────────┐    WiFi (HTTP POST + JSON)     ┌──────────────────┐     HTTP GET  ┌─────────────┐
+┌───────────────┐   I²C/1-Wire   ┌─────────────┐    WiFi (HTTP POST + JSON)   ┌──────────────────┐     HTTP GET  ┌─────────────┐
 │  DHT11 Sensor │ ─────────────▶│   ESP32      │ ───────────────────────────▶│  Flask Server    │ ◀────────────│   Browser    │
 │ (Suhu & RH)   │                │  (Client)   │                              │  (Laptop / PC)   │               │ (Dashboard) │
 └───────────────┘                └─────────────┘                              └──────────────────┘               └─────────────┘
@@ -76,7 +76,7 @@ Aliran data:
 | GND (−)   | GND          | Abu-abu  |
 
 > Sensor DHT11 raw (4-pin) membutuhkan tambahan resistor 10 kΩ antara `VCC` dan `DATA` sebagai pull-up.
-
+```
 Diagram ASCII:
    ESP32                          DHT11
 ┌──────────┐                   ┌──────────┐
@@ -84,9 +84,10 @@ Diagram ASCII:
 │  GPIO4 ──┼──────── DATA ─────┤ S (data) │
 │   GND ───┼──────── GND ──────┤ -        │
 └──────────┘                   └──────────┘
-
+```
 
 ## 5. Struktur Folder
+```
 dashboard-monitoring-esp32/
 ├── README.md
 ├── .gitignore
@@ -104,7 +105,7 @@ dashboard-monitoring-esp32/
 │   └── tutorial.md                     # Tutorial lengkap
 └── screenshots/                        # Bukti eksekusi
     └── dashboard.png                   
-
+```
 
 ## 6. Cara Menjalankan Project
 ### 6.1 Persiapan di Laptop (Server)
