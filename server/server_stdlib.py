@@ -38,6 +38,34 @@ HOST = "0.0.0.0"   # ganti ke "10.6.6.41" jika ingin bind hanya ke 1 IP
 PORT = 5020
 MAX_HISTORY = 200
 
+import os
+
+DATA_DIR  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+DATA_FILE = os.path.join(DATA_DIR, "sensor_history.jsonl")
+
+def load_history() -> None:
+    """Membaca seluruh record dari sensor_history.jsonl ke deque _history."""
+    os.makedirs(DATA_DIR, exist_ok=True)
+    if not os.path.exists(DATA_FILE):
+        return
+    with open(DATA_FILE, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                _history.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+
+def append_history(record: dict) -> None:
+    """Menyimpan satu record ke sensor_history.jsonl secara append."""
+    os.makedirs(DATA_DIR, exist_ok=True)
+    with open(DATA_FILE, "a", encoding="utf-8") as f:
+        f.write(json.dumps(record, ensure_ascii=False) + "\n")
+        f.flush()
+        os.fsync(f.fileno())
+
 _history: "deque[dict]" = deque(maxlen=MAX_HISTORY)
 
 
@@ -75,6 +103,10 @@ def render_dashboard() -> str:
             f'  <div class="meta-item"><span class="k">Last Update</span><span class="v">{escape(latest["timestamp"])}</span></div>'
             f'  <div class="meta-item"><span class="k">Source IP</span><span class="v">{escape(latest["source_ip"])}</span></div>'
             f'  <div class="meta-item"><span class="k">Total Records</span><span class="v">{total}</span></div>'
+            '</div>'
+            '<h2 style="margin-top: 32px;">Grafik Real-Time</h2>'
+            '<div class="card" style="padding: 16px;">'
+            '  <canvas id="sensorChart" height="120"></canvas>'
             '</div>'
             '<h2 style="margin-top: 32px;">Riwayat (10 terbaru)</h2>'
             '<table>'
@@ -131,6 +163,36 @@ def render_dashboard() -> str:
   {status_pill}
 </header><main>{body}</main>
 <footer>Dashboard Monitoring Ruangan &middot; Python stdlib (no pip)</footer>
+<script src="/chart.min.js"></script>
+<script>
+  async function loadChart() {{
+    const res = await fetch('/api/history');
+    const json = await res.json();
+    const rows = (json.data || []).slice(-50);
+    const labels = rows.map(r => r.timestamp.slice(11));
+    const suhu   = rows.map(r => r.temperature);
+    const rh     = rows.map(r => r.humidity);
+    const ctx = document.getElementById('sensorChart').getContext('2d');
+    if (window._chart) window._chart.destroy();
+    window._chart = new Chart(ctx, {{
+      type: 'line',
+      data: {{
+        labels: labels,
+        datasets: [
+          {{ label: 'Suhu (°C)', data: suhu, tension: 0.3 }},
+          {{ label: 'Kelembaban (%RH)', data: rh, tension: 0.3 }}
+        ]
+      }},
+      options: {{
+        responsive: true,
+        animation: false,
+        scales: {{ y: {{ beginAtZero: false }} }}
+      }}
+    }});
+  }}
+  loadChart();
+  setInterval(loadChart, 5000);
+</script>
 </body></html>"""
 
 
@@ -175,6 +237,20 @@ class DashboardHandler(BaseHTTPRequestHandler):
             })
         elif self.path == "/health":
             self._send_json(200, {"status": "ok", "records": len(_history)})
+        elif self.path == "/chart.min.js":
+            js_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                "static", "chart.min.js")
+            try:
+                with open(js_path, "rb") as f:
+                    body = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/javascript; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Cache-Control", "public, max-age=86400")
+                self.end_headers()
+                self.wfile.write(body)
+            except FileNotFoundError:
+                self._send_json(404, {"status": "error", "message": "chart.min.js tidak ditemukan"})
         else:
             self._send_json(404, {"status": "error", "message": "Not found"})
 
@@ -211,6 +287,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             "source_ip": self.client_address[0],
         }
         _history.append(record)
+        append_history(record)    # <-- baris baru, persistensi ke disk
 
         logging.info(
             "[RECV] %s | %s | suhu=%.1fC | RH=%.1f%%",
@@ -233,6 +310,7 @@ def main() -> None:
         level=logging.INFO,
         format="%(asctime)s | %(levelname)s | %(message)s",
     )
+    load_history()    # <-- baris baru
 
     server = ThreadingHTTPServer((HOST, PORT), DashboardHandler)
     print(f"Dashboard Monitoring (stdlib) berjalan di http://{HOST}:{PORT}")

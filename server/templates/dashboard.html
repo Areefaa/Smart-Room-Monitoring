@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta http-equiv="refresh" content="5" />
+  <!-- Auto-refresh halaman penuh dimatikan; pembaruan dilakukan oleh Chart.js -->
   <title>Dashboard Monitoring Ruangan</title>
   <style>
     :root {
@@ -151,6 +151,11 @@
         <div class="meta-item"><span class="k">Total Records</span><span class="v">{{ total }}</span></div>
       </div>
 
+      <h2 style="margin-top: 32px;">Grafik Real-Time</h2>
+      <div class="card" style="padding: 16px;">
+        <canvas id="sensorChart" height="120"></canvas>
+      </div>
+
       <h2 style="margin-top: 32px;">Riwayat (10 terbaru)</h2>
       <table>
         <thead>
@@ -188,5 +193,38 @@
   <footer>
     Dashboard Monitoring Ruangan &middot; Flask + ESP32 + DHT11
   </footer>
+
+  <script src="{{ url_for('static', filename='chart.min.js') }}"></script>
+  <script>
+    async function muatGrafik() {
+      const respons = await fetch('/api/history');
+      const json = await respons.json();
+      const baris = (json.data || []).slice(-50);
+      const label = baris.map(r => r.timestamp.slice(11));
+      const suhu  = baris.map(r => r.temperature);
+      const rh    = baris.map(r => r.humidity);
+
+      const ctx = document.getElementById('sensorChart').getContext('2d');
+      if (window._grafik) window._grafik.destroy();
+
+      window._grafik = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: label,
+          datasets: [
+            { label: 'Suhu (°C)',         data: suhu, tension: 0.3 },
+            { label: 'Kelembaban (%RH)',  data: rh,   tension: 0.3 }
+          ]
+        },
+        options: {
+          responsive: true,
+          animation: false,
+          scales: { y: { beginAtZero: false } }
+        }
+      });
+    }
+    muatGrafik();
+    setInterval(muatGrafik, 5000);
+  </script>
 </body>
 </html>
