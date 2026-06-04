@@ -241,13 +241,120 @@ curl -X POST http://<IP-LAPTOP>:5020/sensor-data \
 
 ---
 
-## 10. Screenshot Dashboard
+## 10. Server Versi Stdlib (untuk Server Paten `10.6.6.41`)
+
+Selain `server/app.py` (Flask), repo ini menyediakan **`server/server_stdlib.py`** — versi server yang **tidak butuh `pip install` apa pun**, hanya pakai modul stdlib bawaan Python (`http.server`, `json`, `collections`, `datetime`).
+
+Versi ini dibuat khusus untuk server "paten" kelompok di IP `10.6.6.41:5020` — server tersebut tidak bisa di-install paket pip eksternal (Flask, Jinja2, dll). Untuk laptop/PC biasa silakan tetap pakai versi Flask di `app.py`.
+
+### 10.1 Perbandingan Singkat
+
+| Aspek          | `server/app.py` (Flask)                              | `server/server_stdlib.py` (Stdlib)                  |
+|----------------|------------------------------------------------------|-----------------------------------------------------|
+| Dependency     | `Flask >= 3.0` (perlu `pip install -r requirements.txt`) | **Tidak ada** — Python 3.6+ standar saja           |
+| Endpoint       | Sama: `/`, `/sensor-data`, `/api/latest`, `/api/history`, `/health` | Sama persis                              |
+| Template HTML  | `templates/dashboard.html` (Jinja2)                  | HTML inline di kode (`render_dashboard()` f-string) |
+| Multi-client   | Flask dev server (multi-threaded by default)         | `ThreadingHTTPServer` (1 thread per request)        |
+| Cocok untuk    | Laptop dev / lab                                     | Server locked / paten / tanpa akses pip             |
+| Cara jalan     | `pip install -r requirements.txt && python app.py`   | `python3 server_stdlib.py`                          |
+
+Kedua versi mendengarkan di port `5020` dan menerima format JSON yang sama dari ESP32. **ESP32 tidak perlu tahu versi mana yang aktif** — POST ke URL yang sama, hasilnya identik.
+
+### 10.2 Penjelasan Kode `server/server_stdlib.py`
+
+File ini berisi 251 baris dan dibagi ke 4 bagian utama: **import & konstanta**, **`render_dashboard()`**, **class `SensorHandler`**, dan **`main()`**.
+
+#### a) Import & Konstanta
+```python
+import json, logging, sys
+from collections import deque
+from datetime import datetime, timedelta, timezone
+from html import escape
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+WIB        = timezone(timedelta(hours=7), name="WIB")
+HOST       = "0.0.0.0"
+PORT       = 5020
+MAX_HISTORY = 200
+_history: "deque[dict]" = deque(maxlen=MAX_HISTORY)
+```
+- **`http.server`** + **`ThreadingHTTPServer`** — modul stdlib untuk membangun HTTP server multi-thread tanpa framework eksternal.
+- **`WIB`** — timezone fixed offset +7 jam. Server `10.6.6.41` jam OS-nya UTC; tanpa timezone explicit, dashboard akan tampil mundur 7 jam dari jam dinding Indonesia. Dengan `datetime.now(WIB)` kita memaksa output WIB tanpa harus mengubah setting OS server.
+- **`_history`** — `deque` dengan `maxlen=200` untuk menyimpan 200 record sensor terbaru di RAM. Saat penuh, entri terlama otomatis di-drop (FIFO). Tidak persistent ke disk — restart server = data hilang (sesuai sifat demo).
+- **`HOST = "0.0.0.0"`** — bind ke semua network interface, sehingga ESP32 dari LAN bisa connect. Kalau diset ke `"127.0.0.1"`, hanya localhost yang bisa connect (ESP32 ditolak).
+
+#### b) `render_dashboard()` — menyusun HTML dashboard
+Mengembalikan dashboard sebagai string HTML. Versi Flask memakai Jinja2 template `dashboard.html`; di sini HTML disusun manual dengan **f-string** Python supaya tidak butuh library template apa pun.
+- Kalau `_history` kosong → tampil placeholder *"Menunggu data pertama dari ESP32..."*.
+- Kalau ada data → render kartu suhu + kelembaban (font besar), meta-info (`device_id`, `timestamp`, `source_ip`, `total_records`), dan tabel 10 record terakhir.
+- CSS dark-theme di-embed langsung dalam `<style>` (tidak butuh folder `static/`).
+- Auto-refresh tiap 5 detik via `<meta http-equiv="refresh" content="5">`, tanpa JavaScript.
+- Semua nilai user-supplied di-`escape()` untuk mencegah HTML injection.
+
+#### c) Class `SensorHandler(BaseHTTPRequestHandler)`
+Class yang menangani setiap HTTP request masuk. Mengikuti pola stdlib: satu method per HTTP verb.
+
+**`do_GET()`** — handle GET (dashboard + read-only API):
+| Path            | Response                                                |
+|-----------------|---------------------------------------------------------|
+| `/`             | HTML dashboard (`Content-Type: text/html`)              |
+| `/api/latest`   | JSON record terbaru                                     |
+| `/api/history`  | JSON list seluruh `_history` (max 200)                  |
+| `/health`       | `{"status":"ok", "records": N}` — untuk monitoring     |
+| lainnya         | 404 Not Found                                           |
+
+**`do_POST()`** — handle POST dari ESP32 ke `/sensor-data`:
+1. Baca header `Content-Length` untuk mengetahui ukuran body.
+2. Baca body sejumlah byte itu, decode UTF-8, parse sebagai JSON.
+3. Validasi field wajib: `temperature` dan `humidity` harus ada & numerik.
+4. Tambah field server-side: `timestamp = datetime.now(WIB)` dan `source_ip = self.client_address[0]` (IP asal ESP32, untuk verifikasi visual di dashboard).
+5. Append record ke `_history`.
+6. Return JSON `{"status":"ok", "received": {...}}` dengan HTTP 200.
+7. Kalau JSON malformed / field hilang → return HTTP 400 dengan pesan error yang menjelaskan apa yang salah.
+
+**`log_message()`** di-override supaya logging tidak nge-spam stderr default `BaseHTTPRequestHandler` — dialihkan ke modul `logging` standar dengan format timestamp + level.
+
+#### d) `main()` — entry point
+```python
+def main():
+    server = ThreadingHTTPServer((HOST, PORT), SensorHandler)
+    print(f"[BOOT] Server stdlib started at http://{HOST}:{PORT}/")
+    server.serve_forever()
+```
+- **`ThreadingHTTPServer`** (bukan `HTTPServer` biasa) — spawn thread baru per request. Penting karena ESP32 mengirim POST tiap 5 detik **bersamaan** dengan browser yang refresh dashboard. Tanpa threading, request akan di-handle berurutan, browser bisa hang saat ESP32 sedang POST.
+- **`serve_forever()`** — blocking loop, server jalan terus sampai dapat sinyal `SIGINT` / `SIGTERM` atau di-kill manual.
+
+### 10.3 Cara Deploy ke `10.6.6.41`
+```bash
+# 1. Upload (pilih salah satu)
+scp server/server_stdlib.py user@10.6.6.41:~/dashboard.py    # via scp
+# atau via WinSCP (Windows) drag-and-drop
+# atau paste manual via `nano ~/dashboard.py` di PuTTY
+
+# 2. Login dan jalankan secara persisten
+ssh user@10.6.6.41
+nohup python3 ~/dashboard.py > ~/dashboard.log 2>&1 &
+disown
+exit
+
+# 3. Verifikasi (dari laptop satu LAN)
+curl http://10.6.6.41:5020/health
+# -> {"status":"ok", "records": 0}
+```
+
+Tidak perlu `pip install`, tidak perlu virtual env, tidak perlu `sudo` — Python 3.6+ bawaan sistem sudah cukup.
+
+Untuk akses dari jaringan luar (mis. WiFi rumah ESP32 berbeda dengan LAN UGM tempat `10.6.6.41` berada), gunakan **Tailscale Funnel** di mesin tambahan yang satu LAN dengan `10.6.6.41` — mesin itu meng-expose `10.6.6.41:5020` ke URL HTTPS publik, dan `SERVER_URL` di firmware ESP32 diarahkan ke URL tersebut.
+
+---
+
+## 11. Screenshot Dashboard
 > _Screenshot aktual setelah demo berjalan tertera pada Repository._
 ![Dashboard Screenshot](screenshots/dashboard.png)
 
 ---
 
-## 11. Riwayat Commit
+## 12. Riwayat Commit
 
 Sesuai syarat tugas GitHub (ks-skj-github):
 
@@ -258,7 +365,7 @@ Sesuai syarat tugas GitHub (ks-skj-github):
 
 ---
 
-## 12. Kesimpulan
+## 13. Kesimpulan
 
 - Komunikasi client–server berbasis HTTP berhasil diimplementasikan antara ESP32 dan Flask.
 - Sensor DHT11 dibaca setiap 5 detik oleh ESP32, lalu dikirim via WiFi dalam format JSON.
@@ -267,7 +374,7 @@ Sesuai syarat tugas GitHub (ks-skj-github):
 
 ---
 
-## 13. Pembagian Tugas
+## 14. Pembagian Tugas
 
 | Nama           | Jobdesk                              |
 |----------------|--------------------------------------|

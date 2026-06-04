@@ -1,0 +1,4 @@
+Add-Content .gitignore "`nserver/data/*.jsonl"
+Add-Content .gitignore "__pycache__/"
+Add-Content .gitignore "*.pyc"
+Add-Content .gitignore ".venv/"
